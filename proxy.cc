@@ -28,54 +28,71 @@ void* connectionHandler(void *arg) {
 int main(int argc, char *argv[]) {
   signal(SIGPIPE, SIG_IGN);  // To ignore SIGPIPE
   TCPSocket* clientSock;  // for accepting connections
-
+    TCPSocket serverSock;
+    
+    unsigned short int tcpServerPort = 0;  // let the server decide
+    
   int rc;  // return code for pthread
     
   parseArgs(argc, argv);
     
 
-
-//    try {
-//        clientSock.Connect(*serverUrl);  // Connect to the target server.
-//    } catch(std::string msg) {
-//        // Give up if sock is not created correctly.
-//        std::cerr << msg << std::endl;
-//        std::cerr << "Unable to connect to server: "
-//        << serverUrl->getHost() << std::endl;
-//        delete serverUrl;
-//        exit(1);
-//    }
     
     /********TO BE IMPLEMENTED********/
     // Creata a socket, bind it and listen for incoming connection.
     
+    unsigned short somePort = 0;  // let the OS decide, like proj1.
     try {
-        clientSock.createSocket();
-    }
-    catch (std::string msg) {
+        serverSock.Bind(somePort);
+    } catch (std::string msg)
+    {
         std::cerr << msg << std::endl;
         exit(1);
     }
-    
-      std::cout << "Proxy running at " << port << "..." << std::endl;
+    try {
+        serverSock.Listen();
+    }
+    catch (std::string msg)
+    {
+        std::cerr << msg << std::endl;
+        exit(1);
+    }
+    serverSock.getPort(tcpServerPort);
+    // print the port name
+    std::cout << "[TCP] socket has port: " << tcpServerPort << std::endl;
     
   // start the infinite server loop
   while (true) {
     /********TO BE IMPLEMENTED********/
+      
+      // accept the incoming connection
+      try {
+          clientSock = new TCPSocket();
+          if (!serverSock.Accept(*clientSock)) {
+              std::cout << "Cannot accept ..." << std::endl;
+              continue;
+          }
+          
+      } catch (std::string msg) {
+          std::cout << msg << std::endl;
+          continue;
+      }
+            
+
     break; // remove this break when you have TCPSocket::Accept. This break
            // is to stop the infinite loop from creating too many thread and
            // crashs the program
     // accept incoming connections
+      // create new thread
+      pthread_t thread;
+      rc = pthread_create(&thread, NULL, connectionHandler, clientSock);
+      
+      // if rc != 0, the creation of threadis failed.
+      if (rc) {
+          std::cerr << "Thread create error! Error code: " << rc << std::endl;
+          exit(1);
+      }
 
-    // create new thread
-    pthread_t thread;
-    rc = pthread_create(&thread, NULL, connectionHandler, clientSock);
-
-    // if rc != 0, the creation of threadis failed.
-    if (rc) {
-      std::cerr << "Thread create error! Error code: " << rc << std::endl;
-      exit(1);
-    }
   }
 
   /********TO BE IMPLEMENTED********/
