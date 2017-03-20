@@ -30,14 +30,35 @@ int main(int argc, char *argv[]) {
   TCPSocket* clientSock;  // for accepting connections
 
   int rc;  // return code for pthread
-
+    
   parseArgs(argc, argv);
+    
 
-  /********TO BE IMPLEMENTED********/
-  // Creata a socket, bind it and listen for incoming connection.
 
-  std::cout << "Proxy running at " << port << "..." << std::endl;
-
+//    try {
+//        clientSock.Connect(*serverUrl);  // Connect to the target server.
+//    } catch(std::string msg) {
+//        // Give up if sock is not created correctly.
+//        std::cerr << msg << std::endl;
+//        std::cerr << "Unable to connect to server: "
+//        << serverUrl->getHost() << std::endl;
+//        delete serverUrl;
+//        exit(1);
+//    }
+    
+    /********TO BE IMPLEMENTED********/
+    // Creata a socket, bind it and listen for incoming connection.
+    
+    try {
+        clientSock.createSocket();
+    }
+    catch (std::string msg) {
+        std::cerr << msg << std::endl;
+        exit(1);
+    }
+    
+      std::cout << "Proxy running at " << port << "..." << std::endl;
+    
   // start the infinite server loop
   while (true) {
     /********TO BE IMPLEMENTED********/
@@ -60,7 +81,7 @@ int main(int argc, char *argv[]) {
   /********TO BE IMPLEMENTED********/
   // close the listening sock
 
-  std::cout << "Parent process termianted." << std::endl;
+  std::cout << "Parent process terminated." << std::endl;
 
   return 0;
 }
