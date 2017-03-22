@@ -58,39 +58,50 @@ void ProxyWorker::handleRequest() {
 
   // Check if the request is valid
   // Terminate this ProxyWorker if it is not a valid request
-  std::cout << "Checking request..." << std::endl;
-  if (!checkRequest()) {
-    return;
-  }
-  std::cout << "Done. The request is valid." << std::endl;
-
-  std::string host;
-  clientRequest->getHost(host);
-  std::cout << std::endl << "Forwarding request to server "
-            << host << "..." << std::endl;
-  if (!forwardRequest()) {
-    return;
-  }
+    
+//  std::cout << "Checking request..." << std::endl;
+//  if (!checkRequest()) {
+//    return;
+//  }
+//  std::cout << "Done. The request is valid." << std::endl;
+//
+//  std::string host;
+//  clientRequest->getHost(host);
+//  std::cout << std::endl << "Forwarding request to server "
+//            << host << "..." << std::endl;
+//  if (!forwardRequest()) {
+//    return;
+//  }
 
   // Receive the response header and modify the server header field
   // Receive the response body. Handle the default and chunked transfor
   // encoding.
-  std::cout << "Getting the response from the server..." << std::endl;
-  if (!getResponse()) {
-    return;
-  }
-
-  // return the response to the client
-  std::cout << "Returning the response to the client..." << std::endl;
-  if (!returnResponse()) {
-    return;
-  }
-
-  return;
+    
+//    
+//  std::cout << "Getting the response from the server..." << std::endl;
+//  if (!getResponse()) {
+//    return;
+//  }
+//
+//  // return the response to the client
+//  std::cout << "Returning the response to the client..." << std::endl;
+//  if (!returnResponse()) {
+//    return;
+//  }
+//
+//  return;
 }
 
 bool ProxyWorker::getRequest() {
   /********TO BE IMPLEMENTED********/
+    
+    HTTPRequest *request = HTTPRequest::receive(*clientSock);
+    if (request != NULL)
+    {
+        serverUrl = HTTPRequest::getUrl(request);
+    }
+    return (request == NULL);
+
   // Get the request from the client (HTTPRequest::receive)
   // Chck if the request is received correctly
   //
@@ -98,6 +109,7 @@ bool ProxyWorker::getRequest() {
 }
 
 bool ProxyWorker::checkRequest() {
+    
   // 1. Make sure we're pointing to a server URL
   //    Respond a 404 Not Found if the server is invalid, parse failed
   //    (That is serverUrl == NULL)
@@ -111,6 +123,7 @@ bool ProxyWorker::checkRequest() {
   //    Note: the request is still valid
   // 4. Insert subliminal message if the requested object is a html and
   //    does not have a subliminal tag
+    
   if (true /* 1. complete the condition*/) {
     /********TO BE IMPLEMENTED********/
   } else {  // serverUrl is good

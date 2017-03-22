@@ -9,11 +9,19 @@
 void* connectionHandler(void *arg) {
   TCPSocket *clientSock = (TCPSocket *) arg;
 
+    ProxyWorker *worker = new ProxyWorker(clientSock);
+    worker->handleRequest();
+   // worker.handleRequest();
+    std::cout << "got to connection handler " << std::endl;
+    
   /********TO BE IMPLEMENTED********/
   // Create a ProxyWorker to handle this connection.
   // When done handling the connection, remember to close and delete
   // the socket, and delete the ProxyWorker
-
+    clientSock->Close();
+    delete clientSock;
+    delete worker;
+    
   pthread_exit(0);
 }
 
@@ -64,7 +72,7 @@ int main(int argc, char *argv[]) {
   // start the infinite server loop
   while (true) {
     /********TO BE IMPLEMENTED********/
-      
+      //cout << "got here?" << endl;
       // accept the incoming connection
       try {
           clientSock = new TCPSocket();
@@ -72,6 +80,7 @@ int main(int argc, char *argv[]) {
               std::cout << "Cannot accept ..." << std::endl;
               continue;
           }
+       //   cout << "got here?" << endl;
           
       } catch (std::string msg) {
           std::cout << msg << std::endl;
@@ -79,7 +88,7 @@ int main(int argc, char *argv[]) {
       }
             
 
-    break; // remove this break when you have TCPSocket::Accept. This break
+    //break; // remove this break when you have TCPSocket::Accept. This break
            // is to stop the infinite loop from creating too many thread and
            // crashs the program
     // accept incoming connections
