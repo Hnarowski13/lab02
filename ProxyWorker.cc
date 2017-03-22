@@ -98,7 +98,7 @@ bool ProxyWorker::getRequest() {
     HTTPRequest *request = HTTPRequest::receive(*clientSock);
     if (request != NULL)
     {
-        serverUrl = HTTPRequest::getUrl(request);
+        serverUrl = request->getUrl();
     }
     return (request == NULL);
 
