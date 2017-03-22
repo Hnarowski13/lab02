@@ -95,12 +95,20 @@ void ProxyWorker::handleRequest() {
 bool ProxyWorker::getRequest() {
   /********TO BE IMPLEMENTED********/
     
-    HTTPRequest *request = HTTPRequest::receive(*clientSock);
-    if (request != NULL)
+    
+    clientRequest = HTTPRequest::receive(*clientSock);
+    if (clientRequest != NULL)
     {
-        serverUrl = request->getUrl();
+        std::cout << clientRequest->getUrl() << std::endl;
+        std::cout << "not null" << std::endl;
     }
-    return (request == NULL);
+//    const std::string url;
+//    if (clientRequest != NULL)
+//    {
+//        url = clientRequest->getUrl();
+//        std::cout << "server url: "<< url << std::endl;
+//    }
+    return (clientRequest == NULL);
 
   // Get the request from the client (HTTPRequest::receive)
   // Chck if the request is received correctly
