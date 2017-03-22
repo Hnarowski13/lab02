@@ -64,6 +64,8 @@ void ProxyWorker::handleRequest() {
 //    return;
 //  }
 //  std::cout << "Done. The request is valid." << std::endl;
+    
+    
 //
 //  std::string host;
 //  clientRequest->getHost(host);
@@ -99,15 +101,12 @@ bool ProxyWorker::getRequest() {
     clientRequest = HTTPRequest::receive(*clientSock);
     if (clientRequest != NULL)
     {
-        std::cout << clientRequest->getUrl() << std::endl;
+        std::string url = clientRequest->getUrl();
+        
+        std::cout <<  url<< std::endl;
         std::cout << "not null" << std::endl;
+        serverUrl = URL::parse(url);
     }
-//    const std::string url;
-//    if (clientRequest != NULL)
-//    {
-//        url = clientRequest->getUrl();
-//        std::cout << "server url: "<< url << std::endl;
-//    }
     return (clientRequest == NULL);
 
   // Get the request from the client (HTTPRequest::receive)
@@ -132,7 +131,8 @@ bool ProxyWorker::checkRequest() {
   // 4. Insert subliminal message if the requested object is a html and
   //    does not have a subliminal tag
     
-  if (true /* 1. complete the condition*/) {
+  if (serverUrl == NULL) {
+      return false;
     /********TO BE IMPLEMENTED********/
   } else {  // serverUrl is good
     if (true /* 2. complete the condition*/) {
