@@ -59,44 +59,47 @@ void ProxyWorker::handleRequest() {
   // Check if the request is valid
   // Terminate this ProxyWorker if it is not a valid request
     
-//  std::cout << "Checking request..." << std::endl;
-//  if (!checkRequest()) {
-//    return;
-//  }
-//  std::cout << "Done. The request is valid." << std::endl;
+  std::cout << "Checking request..." << std::endl;
+  if (!checkRequest()) {
+    return;
+  }
+  std::cout << "Done. The request is valid." << std::endl;
     
     
-//
-//  std::string host;
-//  clientRequest->getHost(host);
-//  std::cout << std::endl << "Forwarding request to server "
-//            << host << "..." << std::endl;
-//  if (!forwardRequest()) {
-//    return;
-//  }
+
+  std::string host;
+  clientRequest->getHost(host);
+  std::cout << std::endl << "Forwarding request to server "
+            << host << "..." << std::endl;
+  if (!forwardRequest()) {
+    return;
+  }
 
   // Receive the response header and modify the server header field
   // Receive the response body. Handle the default and chunked transfor
   // encoding.
     
-//    
-//  std::cout << "Getting the response from the server..." << std::endl;
-//  if (!getResponse()) {
-//    return;
-//  }
-//
-//  // return the response to the client
-//  std::cout << "Returning the response to the client..." << std::endl;
-//  if (!returnResponse()) {
-//    return;
-//  }
-//
-//  return;
+    
+  std::cout << "Getting the response from the server..." << std::endl;
+  if (!getResponse()) {
+    return;
+  }
+
+  // return the response to the client
+  std::cout << "Returning the response to the client..." << std::endl;
+  if (!returnResponse()) {
+    return;
+  }
+
+  return;
 }
 
 bool ProxyWorker::getRequest() {
-  /********TO BE IMPLEMENTED********/
     
+    // Get the request from the client (HTTPRequest::receive)
+    // Chck if the request is received correctly
+    //
+    // Obtain the serverUrl from the request (HTTPRequest::getUrl)
     
     clientRequest = HTTPRequest::receive(*clientSock);
     if (clientRequest != NULL)
@@ -107,12 +110,9 @@ bool ProxyWorker::getRequest() {
         std::cout << "not null" << std::endl;
         serverUrl = URL::parse(url);
     }
-    return (clientRequest == NULL);
+    return (clientRequest != NULL);
 
-  // Get the request from the client (HTTPRequest::receive)
-  // Chck if the request is received correctly
-  //
-  // Obtain the serverUrl from the request (HTTPRequest::getUrl)
+
 }
 
 bool ProxyWorker::checkRequest() {
@@ -125,27 +125,37 @@ bool ProxyWorker::checkRequest() {
   //    "path" with umich is allowed.
   //    Respond a 403 forbidden for host with umich.
   // 3. Filter full URL for "harbaugh" or "Harbaugh". If keyword is found,
-  //    redirect to host="www.youtube.com" and
-  //    path = "/embed/o7iny6VmnlA?autoplay=1"
   //    Note: the request is still valid
   // 4. Insert subliminal message if the requested object is a html and
   //    does not have a subliminal tag
     
   if (serverUrl == NULL) {
+      proxyResponse(404);
       return false;
-    /********TO BE IMPLEMENTED********/
   } else {  // serverUrl is good
-    if (true /* 2. complete the condition*/) {
-      /********TO BE IMPLEMENTED********/
-    } else if (true /* 3. complete the condition*/) {
-      /********TO BE IMPLEMENTED********/
+      std::string host = serverUrl->getHost();
+      std::string path = serverUrl->getPath();
+      std::string fullUrl = clientRequest->getUrl();
+      std::cout << "host: "<< host << std::endl;
+      if (host.find("umich.edu") != std::string::npos) {
+          proxyResponse(403);
+          return false;
+      }
+    else if ((fullUrl.find("harbaugh") != std::string::npos) or (path.find("Harbaugh") != std::string::npos)) {
+        std::cout << "harbaugh detected, redirecting path and host" << std::endl;
+        clientRequest->setPath("/~liuchinj/cse422ss17/lab2_files/whoa.html");
+        clientRequest->setHost("cse.msu.edu");
+        serverUrl = URL::parse(clientRequest->getUrl());
+        
     } else if (URL::isHtml(clientRequest->getPath()) &&  // 4.
                (!ProxyWorker::hasSubliminalTag(clientRequest->getUrl()))) {
-      // Check if this request has subliminalTag
-      // If this request does not contain the subliminalTag, the
-      // proxy does not forward this request to the serer. Instead, the proxy
-      // returns a subliminal message response to the client.
-      /********TO BE IMPLEMENTED********/
+        
+        // Check if this request has subliminalTag
+        // If this request does not contain the subliminalTag, the
+        // proxy does not forward this request to the server. Instead, the proxy
+        // returns a subliminal message response to the client.
+        return subliminalResponse(clientRequest->getUrl(),5);
+      
     } else if (ProxyWorker::hasSubliminalTag(clientRequest->getUrl())){ // 4.
       // If this request contains the subliminalTag, the request has
       // been served before. The proxy handles the request like a normal proxy.
@@ -162,15 +172,89 @@ bool ProxyWorker::checkRequest() {
 bool ProxyWorker::forwardRequest() {
   // pass the client request to the server
   // connected to the server
-  /********TO BE IMPLEMENTED********/
+    
+    /***SEND THE REQUEST TO THE SERVER***/
+    
+    try {
+        clientSock->Connect(*serverUrl);  // Connect to the target server.
+    } catch(std::string msg) {
+        // Give up if sock is not created correctly.
+        std::cerr << msg << std::endl;
+        std::cerr << "Unable to connect to server: "
+        << serverUrl->getHost() << std::endl;
+        //delete serverUrl;
+     //   exit(1);
+        proxyResponse(404);
+        return false;
+        
+    }
+    
+    try {  // send the request to the sock
+        clientRequest->send(*clientSock);
+    } catch(std::string msg) {  // something is wrong, send failed
+        std::cerr << msg << std::endl;
+        return false;
+       // exit(1);
+    }
+    return true;
+    
 }
 
 bool ProxyWorker::getResponse() {
-  /********TO BE IMPLEMENTED********/
+      std::string buffer;
+      std::string responseHeader, responseBody;
+    
+    // The client receives the response stream. Check if the data it has
+    // contains the whole header.
+    // read_header separates the header and data by finding the blank line.
+    try {
+        serverResponse->receiveHeader(*clientSock, responseHeader, responseBody);
+    } catch (std::string msg) {
+        std::cerr << msg << std::endl;
+        std::cout << "unable to receive header?" << std::endl;
+        return false;
+    }
+    
+    // The HTTPResponse::parse construct a response object. and check if
+    // the response is constructed correctly. Also it tries to determine
+    // if the response is chunked transfer encoding or not.
+    serverResponse = HTTPResponse::parse(responseHeader.c_str(),
+                                   responseHeader.length());
+    
+    // The response is illegal.
+    if (!serverResponse) {
+        std::cerr << "Client: Unable to parse the response header." << std::endl;
+        // clean up if there's something wrong
+        //delete response;
+        return false;
+    }
+    
+    // get the response as a std::string
+    serverResponse->print(buffer);
+    
+    // output the response header
+    std::cout << std::endl << "Response header received" << std::endl;
+    std::cout << "=========================================================="
+    << std::endl;
+    std::cout << buffer.substr(0, buffer.length() - 4) << std::endl;
+    std::cout << "=========================================================="
+    << std::endl;
+    
+    return true;
 }
 
 bool ProxyWorker::returnResponse() {
-  /********TO BE IMPLEMENTED********/
+    std::cout << "trying to return response.." << std::endl;
+    try {
+        serverResponse->send(*clientSock);
+        std::cout << "response sent successfully (apparently)" << std::endl;
+    }
+    catch (std::string msg)
+    {
+        std::cout << "someting went wong" << msg << std::endl;
+        return false;
+    }
+    return true;
 }
 
 bool ProxyWorker::hasSubliminalTag(const std::string& url) {

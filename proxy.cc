@@ -12,7 +12,7 @@ void* connectionHandler(void *arg) {
     ProxyWorker *worker = new ProxyWorker(clientSock);
     worker->handleRequest();
    // worker.handleRequest();
-    std::cout << "got to connection handler " << std::endl;
+    std::cout << "Connection served. Proxy child thread terminating " << std::endl;
     
   /********TO BE IMPLEMENTED********/
   // Create a ProxyWorker to handle this connection.
