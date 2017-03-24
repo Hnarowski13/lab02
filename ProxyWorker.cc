@@ -240,10 +240,72 @@ bool ProxyWorker::getResponse() {
     std::cout << "=========================================================="
     << std::endl;
     
+    /***GET REST OF THE MESSAGE BODY AND STORE IT***/
+  // Open a local copy in which to store the file.
+  FILE * out = OpenLocalCopy(serverUrl); //!!!!!!!!!!!! We aren't writing to file here so this is probably the wrong type of data structure to stuff the response into
+  // check
+  if (!out) {
+    std::cerr << "Error opening local copy for writing." << std::endl;
+    
+    delete serverUrl;
+    exit(1);
+  }
+  
+  int bytesWritten = 0, bytesLeft;
+
+  if (!(serverResponse->isChunked()) &&  // neither chunked transfer encoding
+      serverResponse->getContentLen() == -1) {  // nor default transfer encoding
+    std::cout << "The response is neither default tranfer encoding "
+              << "nor chunked transfer encoding. This response is not "
+              << "supported. Terminating the program without saving the file."
+              << std::endl;
+  } else if (!(serverResponse->isChunked())) {
+    std::cout << std::endl << "Downloading rest of the file ... " << std::endl;
+    // default transfer encoding does not split the data into
+    // chunks. The header specifies a Content-Length field. The client knows
+    // exactly how many data it is expecting. The client keeps receiving
+    // the response until it gets the amount specified.
+
+    std::cout << "Default transfer encoding" << std::endl;
+    std::cout << "Content-length: " << serverResponse->getContentLen() << std::endl;
+    bytesLeft = serverResponse->getContentLen();
+    
+    do {
+      // If we got a piece of the file in our buffer for the headers,
+      // have that piece written out to the file, so we don't lose it.
+      fwrite(responseBody.c_str(), 1, responseBody.length(), out);
+      bytesWritten += responseBody.length();
+      bytesLeft -= responseBody.length();
+
+      std::cout << "bytes written:" <<  bytesWritten << std::endl;
+      std::cout << "data gotten:" <<  responseBody.length() << std::endl;
+
+      responseBody.clear();
+      try {
+        // Keeps receiving until it gets the amount it expects.
+        serverResponse->receiveBody(clientSock, responseBody, bytesLeft);
+      } catch(std::string msg) {
+        // something bad happend
+        std::cerr << msg << std::endl;
+        // clean up
+        delete serverResponse;
+        delete serverUrl;
+        
+        fclose(out);
+        clientSock.Close();
+        exit(1);
+      }
+    } while (bytesLeft > 0);
+  } else {  // chunked encoding, !!!!!!!!!!!we can do this last, gonna be a big copy&paste from client
+	  }
+    
     return true;
 }
 
 bool ProxyWorker::returnResponse() {
+	//
+	//IDK if you coded this but I feel like it's weird to use serverResponse for this and for getResponse
+	//
     std::cout << "trying to return response.." << std::endl;
     try {
         serverResponse->send(*clientSock);
