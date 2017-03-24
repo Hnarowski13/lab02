@@ -242,15 +242,15 @@ bool ProxyWorker::getResponse() {
     
     /***GET REST OF THE MESSAGE BODY AND STORE IT***/
   // Open a local copy in which to store the file.
-  FILE * out = OpenLocalCopy(serverUrl); //HARK!!!!!!!!!!!! We aren't writing to file here so this is probably the wrong type 
+  //FILE * out = OpenLocalCopy(serverUrl); //HARK!!!!!!!!!!!! We aren't writing to file here so this is probably the wrong type
 															//of data structure to stuff the response into. MAYBE we can just shove it into response Body
   // check
-  if (!out) {
-    std::cerr << "Error opening local copy for writing." << std::endl;
+ // if (!out) {
+//    std::cerr << "Error opening local copy for writing." << std::endl;
     
-    delete serverUrl;
-    exit(1);
-  }
+  //  delete serverUrl;
+  //  exit(1);
+ // }
   
   int bytesWritten = 0, bytesLeft;
 
@@ -266,7 +266,7 @@ bool ProxyWorker::getResponse() {
     // chunks. The header specifies a Content-Length field. The client knows
     // exactly how many data it is expecting. The client keeps receiving
     // the response until it gets the amount specified.
-
+      serverResponse->setHeaderField("Transfer-encoding", "default");
     std::cout << "Default transfer encoding" << std::endl;
     std::cout << "Content-length: " << serverResponse->getContentLen() << std::endl;
     bytesLeft = serverResponse->getContentLen();
@@ -274,7 +274,7 @@ bool ProxyWorker::getResponse() {
     do {
       // If we got a piece of the file in our buffer for the headers,
       // have that piece written out to the file, so we don't lose it.
-      fwrite(responseBody.c_str(), 1, responseBody.length(), out);
+     // fwrite(responseBody.c_str(), 1, responseBody.length(), out);
       bytesWritten += responseBody.length();
       bytesLeft -= responseBody.length();
 
@@ -284,22 +284,90 @@ bool ProxyWorker::getResponse() {
       responseBody.clear();
       try {
         // Keeps receiving until it gets the amount it expects.
-        serverResponse->receiveBody(clientSock, responseBody, bytesLeft);
+        serverResponse->receiveBody(*clientSock, responseBody, bytesLeft);
       } catch(std::string msg) {
         // something bad happend
         std::cerr << msg << std::endl;
         // clean up
         delete serverResponse;
         delete serverUrl;
-        
-        fclose(out);
-        clientSock.Close();
-        exit(1);
+        return false;
+      //  fclose(out);
+       // clientSock.Close();
+        //exit(1);
       }
     } while (bytesLeft > 0);
   } else {  // chunked encoding, WOWZA!!!!!!!!!!!we can do this last, gonna be a big copy&paste from client
 								// BUTT should just be replacing the correct server variable and destination of the body
-	  }
+      std::cout << std::endl << "Downloading rest of the file ... " << std::endl;
+      std::cout << "Chunked transfer encoding" << std::endl;
+      
+      // As mentioned above, receiveHeader function already split the
+      // body from the header from us. The beginning of this respnse_data
+      // now holds the first chunk size.
+      int chunkLen = HTTPResponse::getChunkSize(responseBody);
+      int totalData = chunkLen;
+      
+      while (1) {
+          std::cout << "       chunk length: " << chunkLen << std::endl;
+          std::cout << "responseBody length: " << responseBody.length()
+          << std::endl;
+          if (chunkLen == 0) {  // the end of response body
+              break;
+          } else if (chunkLen == -1) {
+              // If chunk length is not found
+              // It is possible that the receieveHeader gets exactly only the
+              // header and the first chunk length is not recevied yet. In this
+              // case, getChunkSize returns -1. Receive more to get the chunk length
+              serverResponse->receiveLine(*clientSock, responseBody);
+              chunkLen = HTTPResponse::getChunkSize(responseBody);
+          } else if (responseBody.length() < chunkLen) {
+              try {
+                  // If current data holding is less than the chunkLen, this
+                  // piece of data contains only part of this chunk. Receive more
+                  // until we have a complete chunk to store!
+                  // receive more until we have the whole chunk.
+                  serverResponse->receiveBody(*clientSock, responseBody,
+                                        (chunkLen - responseBody.length()));
+                  serverResponse->receiveLine(*clientSock, responseBody);
+                  // get the blank line between chunks
+                  serverResponse->receiveLine(*clientSock, responseBody);
+                  // get next chunk, at least get the chunk size
+              } catch(std::string msg) {
+                  // something bad happend
+                  std::cerr << msg << std::endl;
+                  // clean up
+                  delete serverResponse;
+                  delete serverUrl;
+                  //fclose(out);
+                  //clientSock.Close();
+                  //exit(1);
+                  return false;
+              }
+          } else {
+              // If current data holding is longer than the chunk size, this
+              // piece of data contains more than one chunk. Store the chunk.
+            //  fwrite(responseBody.c_str(), 1, chunkLen, out);
+              bytesWritten += chunkLen;
+              
+              // reorganize the data, remove the chunk from it
+              // the + 2 here is to consume the extra CLRF
+              
+              responseBody = responseBody.substr(chunkLen + 2,
+                                                 responseBody.length() - chunkLen - 2);
+              serverResponse->receiveLine(*clientSock, responseBody);
+              // get the blank line between chunks
+              serverResponse->receiveLine(*clientSock, responseBody);
+              // get next chunk, at least get the chunk size
+              
+              // get next chunk size
+              chunkLen = HTTPResponse::getChunkSize(responseBody);
+              
+              totalData += chunkLen;
+          }
+      }
+  }
+
     
     return true;
 }
@@ -389,7 +457,7 @@ bool ProxyWorker::subliminalResponse(const std::string& url, int duration) {
   // create a webpage containing the image and automatically redirects to
   // original url in "duration" seconds
   proxyResponse.setContent("<html><head><meta http-equiv=\"refresh\" content=\"" + durationStr + ";url=" + url +subliminalTag + "\" /></head><body><center><font size=72>GO GREEN! GO WHITE!</font><br><img src=\"http://www.cse.msu.edu/~liuchinj/cse422ss17/images/" + figNumberStr + ".jpg\" width=800px><br>Redirecting...</center></body></html>");
-
+ 
   std::cout << std::endl << "Returning subliminal to client ..." << std::endl;
   std::cout << "=========================================================="
             << std::endl;
