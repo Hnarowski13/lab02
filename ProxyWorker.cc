@@ -176,7 +176,7 @@ bool ProxyWorker::forwardRequest() {
     /***SEND THE REQUEST TO THE SERVER***/
     
     try {
-        clientSock->Connect(*serverUrl);  // Connect to the target server.
+        serverSock.Connect(*serverUrl);  // Connect to the target server.
     } catch(std::string msg) {
         // Give up if sock is not created correctly.
         std::cerr << msg << std::endl;
@@ -190,7 +190,7 @@ bool ProxyWorker::forwardRequest() {
     }
     
     try {  // send the request to the sock
-        clientRequest->send(*clientSock);
+        clientRequest->send(serverSock);
     } catch(std::string msg) {  // something is wrong, send failed
         std::cerr << msg << std::endl;
         return false;
@@ -202,13 +202,13 @@ bool ProxyWorker::forwardRequest() {
 
 bool ProxyWorker::getResponse() {
       std::string buffer;
-      std::string responseHeader, responseBody;
+      std::string responseHeader, responseBody, fullContent="";
     
     // The client receives the response stream. Check if the data it has
     // contains the whole header.
     // read_header separates the header and data by finding the blank line.
     try {
-        serverResponse->receiveHeader(*clientSock, responseHeader, responseBody);
+        serverResponse->receiveHeader(serverSock, responseHeader, responseBody);
     } catch (std::string msg) {
         std::cerr << msg << std::endl;
         std::cout << "unable to receive header?" << std::endl;
@@ -241,16 +241,6 @@ bool ProxyWorker::getResponse() {
     << std::endl;
     
     /***GET REST OF THE MESSAGE BODY AND STORE IT***/
-  // Open a local copy in which to store the file.
-  //FILE * out = OpenLocalCopy(serverUrl); //HARK!!!!!!!!!!!! We aren't writing to file here so this is probably the wrong type
-															//of data structure to stuff the response into. MAYBE we can just shove it into response Body
-  // check
- // if (!out) {
-//    std::cerr << "Error opening local copy for writing." << std::endl;
-    
-  //  delete serverUrl;
-  //  exit(1);
- // }
   
   int bytesWritten = 0, bytesLeft;
 
@@ -270,11 +260,11 @@ bool ProxyWorker::getResponse() {
     std::cout << "Default transfer encoding" << std::endl;
     std::cout << "Content-length: " << serverResponse->getContentLen() << std::endl;
     bytesLeft = serverResponse->getContentLen();
-    
+    std::cout << "Content String size before: "<<fullContent.length() << std::endl;
     do {
       // If we got a piece of the file in our buffer for the headers,
-      // have that piece written out to the file, so we don't lose it.
-     // fwrite(responseBody.c_str(), 1, responseBody.length(), out);
+      // have that piece written out, so we don't lose it.
+      fullContent += responseBody;
       bytesWritten += responseBody.length();
       bytesLeft -= responseBody.length();
 
@@ -292,13 +282,17 @@ bool ProxyWorker::getResponse() {
         delete serverResponse;
         delete serverUrl;
         return false;
-      //  fclose(out);
        // clientSock.Close();
         //exit(1);
       }
     } while (bytesLeft > 0);
-  } else {  // chunked encoding, WOWZA!!!!!!!!!!!we can do this last, gonna be a big copy&paste from client
-								// BUTT should just be replacing the correct server variable and destination of the body
+    std::cout << "Content String size after: "<<fullContent.length() << std::endl;
+    serverResponse->setContent(fullContent);
+    
+  } else {  // chunked encoding, WOWZA!!!!!!!!!!!Wanna replace response with __ and clientSock with serverSock
+	  std::string compiledChunks=""; //put the chunks in here, then Remember to setContent of serverResponse to be this and change the transer type to default
+	  
+	  
       std::cout << std::endl << "Downloading rest of the file ... " << std::endl;
       std::cout << "Chunked transfer encoding" << std::endl;
       
@@ -319,7 +313,7 @@ bool ProxyWorker::getResponse() {
               // It is possible that the receieveHeader gets exactly only the
               // header and the first chunk length is not recevied yet. In this
               // case, getChunkSize returns -1. Receive more to get the chunk length
-              serverResponse->receiveLine(*clientSock, responseBody);
+              serverResponse->receiveLine(serverSock, responseBody);
               chunkLen = HTTPResponse::getChunkSize(responseBody);
           } else if (responseBody.length() < chunkLen) {
               try {
@@ -327,11 +321,11 @@ bool ProxyWorker::getResponse() {
                   // piece of data contains only part of this chunk. Receive more
                   // until we have a complete chunk to store!
                   // receive more until we have the whole chunk.
-                  serverResponse->receiveBody(*clientSock, responseBody,
+                  serverResponse->receiveBody(serverSock, responseBody,
                                         (chunkLen - responseBody.length()));
-                  serverResponse->receiveLine(*clientSock, responseBody);
+                  serverResponse->receiveLine(serverSock, responseBody);
                   // get the blank line between chunks
-                  serverResponse->receiveLine(*clientSock, responseBody);
+                  serverResponse->receiveLine(serverSock, responseBody);
                   // get next chunk, at least get the chunk size
               } catch(std::string msg) {
                   // something bad happend
@@ -339,7 +333,6 @@ bool ProxyWorker::getResponse() {
                   // clean up
                   delete serverResponse;
                   delete serverUrl;
-                  //fclose(out);
                   //clientSock.Close();
                   //exit(1);
                   return false;
@@ -347,7 +340,7 @@ bool ProxyWorker::getResponse() {
           } else {
               // If current data holding is longer than the chunk size, this
               // piece of data contains more than one chunk. Store the chunk.
-            //  fwrite(responseBody.c_str(), 1, chunkLen, out);
+            //  fwrite(responseBody.c_str(), 1, chunkLen, out);/////////////////////////////////////NEED TO STORE IN the string I think
               bytesWritten += chunkLen;
               
               // reorganize the data, remove the chunk from it
@@ -355,9 +348,9 @@ bool ProxyWorker::getResponse() {
               
               responseBody = responseBody.substr(chunkLen + 2,
                                                  responseBody.length() - chunkLen - 2);
-              serverResponse->receiveLine(*clientSock, responseBody);
+              serverResponse->receiveLine(serverSock, responseBody);
               // get the blank line between chunks
-              serverResponse->receiveLine(*clientSock, responseBody);
+              serverResponse->receiveLine(serverSock, responseBody);
               // get next chunk, at least get the chunk size
               
               // get next chunk size
@@ -365,18 +358,38 @@ bool ProxyWorker::getResponse() {
               
               totalData += chunkLen;
           }
-      }
-  }
+
+			// This checks if the chunked encoding transfer mode is downloading
+			// the contents correctly.
+			if ((totalData != bytesWritten) && serverResponse->isChunked()) {
+			  std::cout << "WARNING" << std::endl
+						<< "Data received does not match the sum of chunks."
+						<< std::endl;
+			}
+			std::cout << "Download complete (" << bytesWritten
+					  << " bytes written)" << std::endl;
+		  
+		}
+		//TODO
+		//Set The content to the fully compiled chunks
+		//change the transfer type to default
+	}
 
     
     return true;
 }
 
 bool ProxyWorker::returnResponse() {
-	//
-	//IDK if you coded this but I feel like it's weird to use serverResponse for this and for getResponse
-	//
-    std::cout << "trying to return response.." << std::endl;
+	std::string buffer;
+    std::cout << std::endl << "Returning to client ..." << std::endl;
+  std::cout << "=========================================================="
+            << std::endl;
+  buffer.clear();
+  serverResponse->print(buffer);
+  std::cout << buffer.substr(0, buffer.length() - 4) << std::endl;
+  std::cout << "=========================================================="
+            << std::endl;
+            
     try {
         serverResponse->send(*clientSock);
         std::cout << "response sent successfully (apparently)" << std::endl;
