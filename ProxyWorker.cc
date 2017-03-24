@@ -242,7 +242,8 @@ bool ProxyWorker::getResponse() {
     
     /***GET REST OF THE MESSAGE BODY AND STORE IT***/
   // Open a local copy in which to store the file.
-  FILE * out = OpenLocalCopy(serverUrl); //!!!!!!!!!!!! We aren't writing to file here so this is probably the wrong type of data structure to stuff the response into
+  FILE * out = OpenLocalCopy(serverUrl); //HARK!!!!!!!!!!!! We aren't writing to file here so this is probably the wrong type 
+															//of data structure to stuff the response into. MAYBE we can just shove it into response Body
   // check
   if (!out) {
     std::cerr << "Error opening local copy for writing." << std::endl;
@@ -296,7 +297,8 @@ bool ProxyWorker::getResponse() {
         exit(1);
       }
     } while (bytesLeft > 0);
-  } else {  // chunked encoding, !!!!!!!!!!!we can do this last, gonna be a big copy&paste from client
+  } else {  // chunked encoding, WOWZA!!!!!!!!!!!we can do this last, gonna be a big copy&paste from client
+								// BUTT should just be replacing the correct server variable and destination of the body
 	  }
     
     return true;
