@@ -154,7 +154,8 @@ bool ProxyWorker::checkRequest() {
         // If this request does not contain the subliminalTag, the
         // proxy does not forward this request to the server. Instead, the proxy
         // returns a subliminal message response to the client.
-        return subliminalResponse(clientRequest->getUrl(),5);
+        subliminalResponse(clientRequest->getUrl(),5);
+        return false;
       
     } else if (ProxyWorker::hasSubliminalTag(clientRequest->getUrl())){ // 4.
       // If this request contains the subliminalTag, the request has
@@ -289,8 +290,8 @@ bool ProxyWorker::getResponse() {
     std::cout << "Content String size after: "<<fullContent.length() << std::endl;
     serverResponse->setContent(fullContent);
     
-  } else {  // chunked encoding, WOWZA!!!!!!!!!!!Wanna replace response with __ and clientSock with serverSock
-	  std::string compiledChunks=""; //put the chunks in here, then Remember to setContent of serverResponse to be this and change the transer type to default
+  } else {  // chunked encoding, WOWZA!!!!!!!!!!!Wanna replace response with serverResponse and clientSock with serverSock
+	  std::string compiledChunks=""; //put the chunks in here, then remember to setContent of serverResponse to be this and change the transer type to default
 	  
 	  
       std::cout << std::endl << "Downloading rest of the file ... " << std::endl;
@@ -340,7 +341,7 @@ bool ProxyWorker::getResponse() {
           } else {
               // If current data holding is longer than the chunk size, this
               // piece of data contains more than one chunk. Store the chunk.
-            //  fwrite(responseBody.c_str(), 1, chunkLen, out);/////////////////////////////////////NEED TO STORE IN the string I think
+              compiledChunks+=responseBody.substr(0, chunkLen);/////////////////////////////////////NEED TO STORE IN the string I think
               bytesWritten += chunkLen;
               
               // reorganize the data, remove the chunk from it
@@ -370,9 +371,11 @@ bool ProxyWorker::getResponse() {
 					  << " bytes written)" << std::endl;
 		  
 		}
-		//TODO
+		
 		//Set The content to the fully compiled chunks
 		//change the transfer type to default
+		serverResponse->setContent(compiledChunks);
+		serverResponse->setHeaderField("Transfer-encoding", "default");
 	}
 
     
